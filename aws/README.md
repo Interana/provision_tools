@@ -17,6 +17,7 @@ It is extremely important that you only use the credentials with the new account
 Master Account - Your original AWS account that is used for billing
 Interana Account - The newly provision account that is used to run interana cluster.
 
+TBD : interana-cluster-key!!
 
 1) Using a new email address, sign-up for a new Amazon Account at https://aws.amazon.com/.  You will need a new email address and credit card other then your current address
 Please safe keep your root email and password for initial login for the Interana Account you've just created
@@ -29,6 +30,14 @@ Role : AdministratorAccess
 
 3) From that User, generate the access keys and update the awsconfig.py.template file in this folder 
 cp awsconfig.py.template awsconfig.py
+
+4) Install the python requirements for this project
+
+mkvirtualenv provision_tools
+workon provision_tools
+pip install -r requirements.txt 
+
+
 
 4) Run the provision.py script as follows to generate a bucket policy to share the S3 bucket from your master account id
 i.e.
@@ -53,7 +62,7 @@ Statement : [
 
 6) Re run the ./provision.py with to check all permissions are correctly stated
 
-python ./provision.py --s3_bucket 'my-bucket/my_path/*'  --account_id 9999-9999-9999 --check
+python ./provision.py --s3_bucket 'my-bucket/my_path/*'  --master_account_id 9999-9999-9999 --check
 
 If the check is successfull, there will be a interana_cluster.json generated
 
