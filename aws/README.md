@@ -27,31 +27,33 @@ Please safe keep your root email and password for initial login for the Interana
 Say Yes when prompted "Generate and Access key For Each User" checked.
 ```
 User : interana_admin
+```
+
+3) Got the roles tab in IAM Service.  Click on the interan_admin user you've created.  Attach Policy and pick the following role(s):
+```
 Role : AdministratorAccess
 ```
 
 
-3) From that User, generate the access keys and update the awsconfig.py.template file in this folder
+4) From that User, generate the access keys and update the awsconfig.py.template file in this folder
 ```
 cp awsconfig.py.template awsconfig.py
 ```
 
-4) Install the python requirements for this project
+5) Install the python requirements for this project
 ```
 mkvirtualenv provision_tools
 workon provision_tools
 pip install -r requirements.txt 
 ```
 
-
-
-4) Run the provision.py script as follows to generate a bucket policy to share the S3 bucket from your master account id
+6) Run the provision.py script as follows to generate a bucket policy to share the S3 bucket from your master account id
 i.e.
 ```
 python ./provision.py --s3_bucket 'my-bucket/my_path/*'  --interana_account_id 999999999999 --create
 ```
 
-5) In the folder, you will see a s3_bucket_list.policy.  Copy it contents and add it to your master accounts
+7) In the folder, you will see a s3_bucket_list.policy.  Copy it contents and add it to your master accounts
 s3_bucket using the AWS Console:
 ```
 https://console.aws.amazon.com/s3
@@ -63,20 +65,20 @@ Edit the Bucket Policy
 
 You can paste in the policy if there is no policy listed.   If there is policies listed, then add the policy in the "Statements" array to the existing one
 i.e.
-
+```
 Statement : [
 { original policy....},
 { s3_share policy....}
 ]
+```
 
 6) Re run the ./provision.py with to check all permissions are correctly stated
 ```
 python ./provision.py --s3_bucket 'my-bucket/my_path/*'  --interana_account_id 999999999999 --check
 ```
-
 If the check is successfull, there will be a interana_cluster.json generated
 
-7) Review the interana_cluster.json and please email it to 
+7) Review the interana_cluster.json for sensitive information and please email it to 
 ```
 help@interana.com
 ```
