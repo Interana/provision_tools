@@ -19,27 +19,43 @@ Interana Account - The newly provision account that is used to run interana clus
 
 TBD : interana-cluster-key!!
 
-1) Using a new email address, sign-up for a new Amazon Account at https://aws.amazon.com/.  You will need a new email address and credit card other then your current address
+1) Git Clone the provision_tools repo, to a machine that has python installed (mac, linux, windows)
+```
+git clone 
+cd provision_tools/
+```
+
+2) Using a new email address, sign-up for a new Amazon Account at https://aws.amazon.com/.  You will need a new email address and credit card other then your current address
 Please safe keep your root email and password for initial login for the Interana Account you've just created
 
 
-2) Login into the account and navigate to the IAM Service.  Create a new user with permissions as follows.
+3) Login into the account and navigate to the IAM Service.  Create a new user with permissions as follows.
 Say Yes when prompted "Generate and Access key For Each User" checked.
 ```
 User : interana_admin
 ```
+In the next screen DOWNLOAD the Secret and Access key to your repository
 
-3) Got the roles tab in IAM Service.  Click on the interan_admin user you've created.  Attach Policy and pick the following role(s):
+4) Got the roles tab in IAM Service.  Click on the interana_admin user you've created.  Attach Policy and pick the following role(s):
 ```
 Role : AdministratorAccess
 ```
+Now when prompted to download the security credentials, copy them to a awsconfig.py file in this folder like this
 
-4) Git Clone this repo to a computer that has python installed.
-
-5) From that User, generate the access keys and update the awsconfig.py.template file in this folder
 ```
 cp awsconfig.py.template awsconfig.py
+vim awsconfig.py
+
+Update the access_key, secret_key
+for region, fill out your desired region i.e. us-east-1
+See this page for choices for region:
+http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html#concepts-regions
 ```
+
+
+
+5) the access keys and update the awsconfig.py.template file in this folder
+
 
 6) Install the python requirements for this project
 ```
