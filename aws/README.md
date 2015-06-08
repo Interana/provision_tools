@@ -52,10 +52,8 @@ See this page for choices for region:
 http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html#concepts-regions
 ```
 
-6) Install the python requirements for this project
+6) Install the python requirements for this project (perferably using virtualenv)
 ```
-mkvirtualenv provision_tools
-workon provision_tools
 pip install -r requirements.txt 
 ```
 
