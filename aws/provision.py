@@ -1,7 +1,5 @@
 import argparse
-import hashlib
 import json
-import md5
 import os
 from random import random
 import re
@@ -93,16 +91,16 @@ def create_cluster_json(s3_bucket, user, all_policies):
     interana_cluster['aws_region_name'] = awsconfig['aws_region_name']
     interana_cluster['s3_bucket'] = s3_bucket
     interana_cluster['user'] = json.loads(json.dumps(user['get_user_response']['get_user_result']))
-    interana_cluster['all_policies'] = json.loads(json.dumps(all_policies['list_user_policies_response']['list_user_policies_result']))
-
+    interana_cluster['all_policies'] = json.loads(
+        json.dumps(all_policies['list_user_policies_response']['list_user_policies_result']))
 
     with open('s3_bucket_list.policy') as fh:
         interana_cluster['s3_bucket_policy'] = json.load(fh)
 
-
     print "****interana_cluster.json contents.  Please email to support@interana.com***"
     with open('interana_cluster.json', 'w+') as fp_ic:
-        json.dump(interana_cluster, fp_ic)
+        json.dump(interana_cluster, fp_ic, indent=4)
+
     print json.dumps(interana_cluster, indent=True)
 
 
@@ -116,7 +114,7 @@ def provision_create(ec2_conn, iam_conn, interana_account_id, s3_bucket_path):
     infile = 's3_bucket_list.policy.template'
     outfile = 's3_bucket_list.policy'
 
-    #The '*' messes up the read access. It can only be used for write.
+    # The '*' messes up the read access. It can only be used for write.
 
     bucket_name, bucket_prefix = get_bucket_name_prefix(s3_bucket_path)
 
@@ -149,7 +147,8 @@ def get_bucket_name_prefix(s3_bucket_path):
 
     return bucket_name, bucket_prefix
 
-def provision_check(ec2_conn, iam_conn, s3_conn, interana_account_id, s3_bucket_path):
+
+def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path):
     """
     Check the s3 bucket share has list properties, but not write
     Use "dummy_<date>.txt at root of bucket
@@ -157,7 +156,6 @@ def provision_check(ec2_conn, iam_conn, s3_conn, interana_account_id, s3_bucket_
     @TODO should recursively check up the tree to be more sure.
     """
     user, all_policies = check_account_setup(iam_conn)
-
 
     bucket_name, bucket_prefix_orig = get_bucket_name_prefix(s3_bucket_path)
 
@@ -167,7 +165,7 @@ def provision_check(ec2_conn, iam_conn, s3_conn, interana_account_id, s3_bucket_
     iter = 0
     while bucket_prefix is not None:
 
-        access =  'read allow' if iter == 0 else 'read deny'
+        access = 'read allow' if iter == 0 else 'read deny'
         print "Checking Bucket for {} only access at prefix {}".format(access, "'{}'".format(bucket_prefix))
         try:
             bucket = s3_conn.get_bucket(bucket_name, validate=False)
@@ -175,14 +173,16 @@ def provision_check(ec2_conn, iam_conn, s3_conn, interana_account_id, s3_bucket_
             result_iter = list(bucket.list(bucket_prefix, delim))
             prefixes = [prefix.name for prefix in result_iter]
             if len(prefixes) < 1:
-                raise Exception("Did not find any folders or files in prefix {} using delim {}".format(bucket_prefix, delim))
+                raise Exception(
+                    "Did not find any folders or files in prefix {} using delim {}".format(bucket_prefix, delim))
         except S3ResponseError, e:
             if iter == 0:
                 raise Exception("Failed to verify access on bucket {} path {}.\n"
-                                "Additional info : {}".format(bucket_prefix, bucket_prefix, print_exception(e)))
+                                "Additional info : {}".format(bucket_name, bucket_prefix, print_exception(e)))
         else:
             if iter > 0:
-                raise Exception("Unexpected Read Access is granted on path on bucket prefix {}.\n".format(bucket_prefix))
+                raise Exception(
+                    "Unexpected Read Access is granted on path on bucket prefix {}.\n".format(bucket_prefix))
 
         if len(bucket_prefix) > 0:
             bucket_prefix = '/'.join(bucket_prefix.split('/')[0:-1])
@@ -190,22 +190,19 @@ def provision_check(ec2_conn, iam_conn, s3_conn, interana_account_id, s3_bucket_
         else:
             bucket_prefix = None
 
-    def percent_cb(complete, total):
-        sys.stdout.write('.')
-        sys.stdout.flush()
-
     testfile = 'dummy.txt'
 
     try:
         k = Key(bucket)
-        k.key = os.path.join(bucket_prefix_orig, testfile + '.' + str(int(random()*1000)))
-        k.set_contents_from_filename(testfile, cb=percent_cb, num_cb=10)
+        k.key = os.path.join(bucket_prefix_orig, testfile + '.' + str(int(random() * 1000)))
+        k.set_contents_from_filename(testfile)
     except S3ResponseError, e:
         print "Successfully verified read only access"
     else:
         raise Exception("FAILED: Was able to write to path {}".format(k.key))
 
-    create_cluster_json(s3_bucket_path,user, all_policies)
+    create_cluster_json(s3_bucket_path, user, all_policies)
+
 
 def main():
     """
@@ -232,7 +229,8 @@ Assumes requirements.txt has been installed
     if args.action == "create":
         provision_create(ec2_conn, iam_conn, args.interana_account_id, args.s3_bucket)
     elif args.action == "check":
-        provision_check(ec2_conn, iam_conn, s3_conn, args.interana_account_id, args.s3_bucket)
+        provision_check(ec2_conn, iam_conn, s3_conn, args.s3_bucket)
+
 
 if __name__ == "__main__":
     main()
