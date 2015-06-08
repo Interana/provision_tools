@@ -34,7 +34,7 @@ User : interana_admin
 Role : AdministratorAccess
 ```
 
-4) Git Clone this repo to a box that has python installed.
+4) Git Clone this repo to a computer that has python installed.
 
 5) From that User, generate the access keys and update the awsconfig.py.template file in this folder
 ```
