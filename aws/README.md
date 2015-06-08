@@ -60,7 +60,7 @@ pip install -r requirements.txt
 7) Run the provision.py script as follows to generate a bucket policy to share the S3 bucket from your interana account id
 i.e.
 ```
-python ./provision.py --s3_bucket 'my-bucket/my_path/*'  --interana_account_id 999999999999 --create
+python ./provision.py --s3_bucket 'my-bucket/my_path/*'  --interana_account_id 999999999999 --action create
 ```
 
 8) In the folder, you will see a s3_bucket_list.policy.  Copy it contents and add it to your master accounts
@@ -84,7 +84,7 @@ Statement : [
 
 9) Re run the ./provision.py with to check all permissions are correctly stated
 ```
-python ./provision.py --s3_bucket 'my-bucket/my_path/*'  --interana_account_id 999999999999 --check
+python ./provision.py --s3_bucket 'my-bucket/my_path/*'  --interana_account_id 999999999999 --action check
 ```
 If the check is successfull, there will be a interana_cluster.json generated
 
