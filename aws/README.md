@@ -52,11 +52,6 @@ See this page for choices for region:
 http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html#concepts-regions
 ```
 
-
-
-5) the access keys and update the awsconfig.py.template file in this folder
-
-
 6) Install the python requirements for this project
 ```
 mkvirtualenv provision_tools
