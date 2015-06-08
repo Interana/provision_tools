@@ -47,7 +47,7 @@ cp awsconfig.py.template awsconfig.py
 vim awsconfig.py
 
 Update the access_key, secret_key
-for region, fill out your desired region i.e. us-east-1
+for region, fill out your desired region ex. us-east-1
 See this page for choices for region:
 http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html#concepts-regions
 ```
