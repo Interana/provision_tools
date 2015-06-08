@@ -57,7 +57,7 @@ http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zo
 pip install -r requirements.txt 
 ```
 
-7) Run the provision.py script as follows to generate a bucket policy to share the S3 bucket from your master account id
+7) Run the provision.py script as follows to generate a bucket policy to share the S3 bucket from your interana account id
 i.e.
 ```
 python ./provision.py --s3_bucket 'my-bucket/my_path/*'  --interana_account_id 999999999999 --create
