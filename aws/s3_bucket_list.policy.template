@@ -1,6 +1,17 @@
 {
    "Version": "2012-10-17",
    "Statement": [
+   {
+   			"Sid": "AllowGetBucketToInterana",
+   			"Effect": "Allow",
+   			"Principal": {
+   				"AWS": "arn:aws:iam::<INTERANA_ACCOUNT_ID>:root"
+   			},
+   			"Action": [
+   				"s3:GetBucketLocation"
+   			],
+   			"Resource": "arn:aws:s3:::provision-test"
+   		},
       {
          "Sid": "AllowReadAccessToInterana",
          "Effect": "Allow",
@@ -8,12 +19,18 @@
             "AWS": "arn:aws:iam::<INTERANA_ACCOUNT_ID>:root"
          },
          "Action": [
-            "s3:GetBucketLocation",
             "s3:ListBucket"
          ],
          "Resource": [
-            "arn:aws:s3:::<BUCKET_PATH>"
-         ]
+            "arn:aws:s3:::<BUCKET_NAME>"
+         ],
+         "Condition": {
+				"StringLike": {
+					"s3:prefix": [
+						"<BUCKET_PREFIX>"
+					]
+				}
+			}
       }
    ]
 }
