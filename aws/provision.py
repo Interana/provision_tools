@@ -1,4 +1,6 @@
 import argparse
+from calendar import timegm
+from datetime import datetime
 import json
 import os
 from random import random
@@ -9,6 +11,7 @@ import traceback
 from boto import ec2, iam, s3
 from boto.exception import S3ResponseError
 from boto.s3.key import Key
+from boto.s3.prefix import Prefix
 
 from awsconfig import awsconfig
 
@@ -17,6 +20,9 @@ aws_access_key = awsconfig['aws_access_key']
 aws_secret_key = awsconfig['aws_secret_key']
 aws_region_name = awsconfig['aws_region_name']
 
+
+def utctimestamp():
+    return timegm(datetime.utcnow().timetuple())
 
 def print_list(llist):
     return '[%s]' % '\n'.join(map(str, llist))
@@ -106,15 +112,14 @@ def create_cluster_json(s3_bucket, user, all_policies):
 
 def provision_create(ec2_conn, iam_conn, interana_account_id, s3_bucket_path):
     """
-
     Make the s3 bucket policy and let user configure with it
+    If we specify the root bucket, we have t remove the "Condition" as it does allow
+    wildcard at root.
     """
     check_account_setup(iam_conn)
 
     infile = 's3_bucket_list.policy.template'
     outfile = 's3_bucket_list.policy'
-
-    # The '*' messes up the read access. It can only be used for write.
 
     bucket_name, bucket_prefix = get_bucket_name_prefix(s3_bucket_path)
 
@@ -133,17 +138,31 @@ def provision_create(ec2_conn, iam_conn, interana_account_id, s3_bucket_path):
             out_fh.write(translate)
             all_lines += translate.strip()
 
-    print "****policy file***"
+    if len(bucket_prefix) < 1:
+        with open(outfile, 'r') as in_fh:
+            policy = json.load(in_fh)
+            del policy['Statement'][1]['Condition']
+            all_lines = json.dumps(policy)
+            print "Download file to check GetObject Access {}".format(outfile)
+            with open(outfile, 'w') as out_fh:
+                json.dump(policy, out_fh, indent=4)
+
+    print "****policy file {}***".format(outfile)
 
     print json.dumps(json.loads(all_lines), indent=True)
 
 
 def get_bucket_name_prefix(s3_bucket_path):
+    """
+    The bucket prefix, we always add the * otherwise things don't work
+    """
     bucket_path = s3_bucket_path.split('/')
     bucket_name = bucket_path[0]
     bucket_prefix = ""
     if len(bucket_path) > 1:
         bucket_prefix = '/'.join(bucket_path[1:])
+    if len(bucket_prefix) < 1 or bucket_prefix[-1] != "*":
+        bucket_prefix = ''
 
     return bucket_name, bucket_prefix
 
@@ -159,8 +178,8 @@ def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path):
 
     bucket_name, bucket_prefix_orig = get_bucket_name_prefix(s3_bucket_path)
 
-    # This messes up the read
-    bucket_prefix = bucket_prefix_orig.replace('*', '')
+    bucket_prefix = bucket_prefix_orig
+    delim = "/"
 
     iter = 0
     while bucket_prefix is not None:
@@ -169,7 +188,6 @@ def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path):
         print "Checking Bucket for {} only access at prefix {}".format(access, "'{}'".format(bucket_prefix))
         try:
             bucket = s3_conn.get_bucket(bucket_name, validate=False)
-            delim = "/"
             result_iter = list(bucket.list(bucket_prefix, delim))
             prefixes = [prefix.name for prefix in result_iter]
             if len(prefixes) < 1:
@@ -190,11 +208,27 @@ def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path):
         else:
             bucket_prefix = None
 
+    # Now attempt to download a  file
+    bucket = s3_conn.get_bucket(bucket_name, validate=True)
+    file_list = bucket.list(bucket_prefix_orig, '')
+    downloaded = 0
+    for filel in file_list:
+        if isinstance(filel, Prefix):
+            continue
+        local_name = os.path.basename(filel.key)
+        filel.get_contents_to_filename(local_name)
+        downloaded += 1
+        break
+
+    if downloaded < 1:
+        raise Exception("Could not download any files, is this the correct bucket prefix {}".format(bucket_prefix))
+
+
     testfile = 'dummy.txt'
 
     try:
         k = Key(bucket)
-        k.key = os.path.join(bucket_prefix_orig, testfile + '.' + str(int(random() * 1000)))
+        k.key = os.path.join(bucket_prefix_orig, testfile + '.' + str(utctimestamp()))
         k.set_contents_from_filename(testfile)
     except S3ResponseError, e:
         print "Successfully verified read only access"
@@ -234,3 +268,12 @@ Assumes requirements.txt has been installed
 
 if __name__ == "__main__":
     main()
+
+""""
+TEST PLAN
+python provision.py -m <account_id> -s provision-test/datasets/* -a check
+python provision.py -m <account_id> -s provision-test/datasets/* -a create
+
+python provision.py -m <account_id> -s provision-test -a check
+python provision.py -m <account_id> -s provision-test -a create
+"""""
