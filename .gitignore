@@ -58,5 +58,9 @@ target/
 
 #Private file
 awsconfig.py
+interana_cluster.json
+s3_bucket_list.policy
+.idea
+
 
 
