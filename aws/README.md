@@ -69,9 +69,11 @@ s3_bucket using the AWS Console:
 https://console.aws.amazon.com/s3
 ```
 
-Click on the bucket to be shared
+Click on the bucket to be shared.
+
 Open the properties and and click on "permissions"
-Edit the Bucket Policy
+
+Click Edit the Bucket Policy...
 
 You can paste in the policy if there is no policy listed.   If there is policies listed, then add the policy in the "Statements" array to the existing one
 i.e.
