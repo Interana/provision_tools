@@ -154,15 +154,12 @@ def provision_create(ec2_conn, iam_conn, interana_account_id, s3_bucket_path):
 
 def get_bucket_name_prefix(s3_bucket_path):
     """
-    The bucket prefix, we always add the * otherwise things don't work
     """
     bucket_path = s3_bucket_path.split('/')
     bucket_name = bucket_path[0]
     bucket_prefix = ""
     if len(bucket_path) > 1:
         bucket_prefix = '/'.join(bucket_path[1:])
-    if len(bucket_prefix) < 1 or bucket_prefix[-1] != "*":
-        bucket_prefix = ''
 
     return bucket_name, bucket_prefix
 
@@ -209,7 +206,7 @@ def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path):
             bucket_prefix = None
 
     # Now attempt to download a  file
-    bucket = s3_conn.get_bucket(bucket_name, validate=True)
+    bucket = s3_conn.get_bucket(bucket_name, validate=False)
     file_list = bucket.list(bucket_prefix_orig, '')
     downloaded = 0
     for filel in file_list:
@@ -249,7 +246,8 @@ Assumes requirements.txt has been installed
 
     parser.add_argument('-m', '--interana_account_id', help='The master aws account id, without dashes',
                         required=True)
-    parser.add_argument('-s', '--s3_bucket', help='The s3_bucket specified, i.e. my-bucket/my_path/*',
+    parser.add_argument('-s', '--s3_bucket', help='The s3_bucket and path spec. '
+                                                  'Dont use wildcards, ex. my-bucket/my_path/',
                         required='True')
     parser.add_argument('-a', '--action', help='Create or Check a configuration', choices=['create', 'check'],
                         required=True)
