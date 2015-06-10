@@ -85,7 +85,7 @@ Statement : [
 ]
 ```
 
-9) Re run the ./provision.py with to check all permissions are correctly stated
+9) Re run the ./provision.py with to check all permissions are correctly stated.  You will need your account id from the My Account tab.
 ```
 python ./provision.py --s3_bucket 'my-bucket/my_path/*'  --interana_account_id 999999999999 --action check
 ```
