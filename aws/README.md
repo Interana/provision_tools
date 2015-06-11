@@ -36,11 +36,12 @@ User : interana_admin
 ```
 In the next screen DOWNLOAD the Secret and Access key to your repository
 
-4) Got the roles tab in IAM Service.  Click on the interana_admin user you've created.  Attach Policy and pick the following role(s):
+4) Click on the User you just created.  Scroll down to the Permissions Section.  Click on the interana_admin user you've created.  Attach Policy and pick the following role(s):
 ```
 Role : AdministratorAccess
 ```
-Now when prompted to download the security credentials, copy them to a awsconfig.py file in this folder like this
+
+Copy the Secret and Access key to a awsconfig.py file in this folder like this
 
 ```
 cp awsconfig.py.template awsconfig.py
@@ -52,7 +53,7 @@ See this page for choices for region:
 http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html#concepts-regions
 ```
 
-6) Install the python requirements for this project (perferably using virtualenv)
+6) Install the python requirements for this project (perferably using virtualenv) (must be run with root privs)
 ```
 pip install -r requirements.txt 
 ```
@@ -84,7 +85,7 @@ Statement : [
 ]
 ```
 
-9) Re run the ./provision.py with to check all permissions are correctly stated
+9) Re run the ./provision.py with to check all permissions are correctly stated.  You will need your account id from the My Account tab.
 ```
 python ./provision.py --s3_bucket 'my-bucket/my_path/*'  --interana_account_id 999999999999 --action check
 ```
