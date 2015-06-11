@@ -10,7 +10,7 @@
             "Action": [
                 "s3:GetBucketLocation"
             ],
-            "Resource": "arn:aws:s3:::provision-test"
+            "Resource": "arn:aws:s3:::<BUCKET_NAME>"
         },
         {
             "Sid": "AllowReadAccessToInterana",
