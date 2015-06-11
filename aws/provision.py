@@ -210,12 +210,11 @@ def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path):
     file_list = bucket.list(bucket_prefix_orig, '')
     downloaded = 0
     for filel in file_list:
-        print filel.key
-        print type(filel)
-	continue
-	if isinstance(filel, Prefix):
+        if isinstance(filel, Prefix):
             continue
         local_name = os.path.basename(filel.key)
+        if local_name == '':
+            continue
         filel.get_contents_to_filename(local_name)
         downloaded += 1
         break
