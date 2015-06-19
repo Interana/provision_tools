@@ -25,7 +25,7 @@ git clone
 cd provision_tools/
 ```
 
-2) Using a new email address, sign-up for a new Amazon Account at https://aws.amazon.com/.  You will need a new email address and credit card other then your current address
+2) Using a new email address, sign-up for a new Amazon Account at https://aws.amazon.com/.  You will need a new email address and credit card other then your current address.
 Please safe keep your root email and password for initial login for the Interana Account you've just created
 
 3) Open - https://console.aws.amazon.com/billing/home#/account and note your Account ID.
@@ -57,13 +57,14 @@ Alernatively they can be used in command line directgly
 pip install -r requirements.txt 
 ```
 
-7) Run the provision.py script as follows to generate a bucket policy to share the S3 bucket from your interana account id
-i.e.
+7) Run the provision.py script as follows to generate a bucket policy to share the S3 bucket from your interana account id.
+
+Example ~/.aws/credentials
 ```
 python ./provision.py --s3_bucket 'my-bucket/my_path/*' -r us-east-1   --interana_account_id 999999999999 --action create 
 ```
 
-or
+or if using the command line option
 ```
 python ./provision.py --s3_bucket 'my-bucket/my_path/*' -r us-east-1  --interana_account_id 999999999999 --action create -w <aws_access_key> -x <aws_secret_key>
 ```
@@ -91,11 +92,13 @@ Statement : [
 ```
 
 9) Re run the ./provision.py with to check all permissions are correctly stated.  You will need your account id from the My Account tab.
+
+Example ~/.aws/credentials
 ```
 python ./provision.py --s3_bucket 'my-bucket/my_path/*' -r us-east-1 --interana_account_id 999999999999 --action check
 ```
 
-or
+or if using the command line option
 
 ```
 python ./provision.py --s3_bucket 'my-bucket/my_path/*' -r us-east-1 --interana_account_id 999999999999 --action check -w <aws_access_key> -x <aws_secret_key>
