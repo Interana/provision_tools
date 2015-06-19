@@ -17,8 +17,6 @@ It is extremely important that you only use the credentials with the new account
 Master Account - Your original AWS account that is used for billing
 Interana Account - The newly provision account that is used to run interana cluster.
 
-TBD : interana-cluster-key!!
-
 1) Git Clone the provision_tools repo, to a machine that has python installed (mac, linux, windows)
 ```
 git clone 
