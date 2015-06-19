@@ -1,9 +1,10 @@
+#!/usr/bin/env python
+
 import argparse
 from calendar import timegm
 from datetime import datetime
 import json
 import os
-from random import random
 import re
 import sys
 import traceback
@@ -23,6 +24,7 @@ aws_region_name = awsconfig['aws_region_name']
 
 def utctimestamp():
     return timegm(datetime.utcnow().timetuple())
+
 
 def print_list(llist):
     return '[%s]' % '\n'.join(map(str, llist))
@@ -222,7 +224,6 @@ def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path):
     if downloaded < 1:
         raise Exception("Could not download any files, is this the correct bucket prefix {}".format(bucket_prefix))
 
-
     testfile = 'dummy.txt'
 
     try:
@@ -246,19 +247,33 @@ def main():
 Assumes requirements.txt has been installed
 """)
 
-    parser.add_argument('-m', '--interana_account_id', help='The master aws account id, without dashes',
+    parser.add_argument('-i', '--interana_account_id', help='The interana account id, without dashes',
                         required=True)
+
     parser.add_argument('-s', '--s3_bucket', help='The s3_bucket and path spec. '
                                                   'Dont use wildcards, ex. my-bucket/my_path/',
                         required='True')
+
     parser.add_argument('-a', '--action', help='Create or Check a configuration', choices=['create', 'check'],
+                        required=True)
+
+    parser.add_argument('-a', '--aws_access_key',
+                        help='AWS Access key, None if using instance profile',
+                        default=None)
+
+    parser.add_argument('-x', '--aws_secret_key',
+                        help='AWS Secret key, None if using instance profile',
+                        default=None)
+
+    parser.add_argument('-r', '--region',
+                        help='region, i.e. us-east-1',
                         required=True)
 
     args = parser.parse_args()
 
-    ec2_conn = get_ec2_connection(aws_access_key, aws_secret_key, aws_region_name)
-    iam_conn = get_iam_connection(aws_access_key, aws_secret_key, aws_region_name)
-    s3_conn = get_s3_connection(aws_access_key, aws_secret_key, aws_region_name)
+    ec2_conn = get_ec2_connection(args.aws_access_key, args.aws_secret_key, args.aws_region_name)
+    iam_conn = get_iam_connection(args.aws_access_key, args.aws_secret_key, args.aws_region_name)
+    s3_conn = get_s3_connection(args.aws_access_key, args.aws_secret_key, args.aws_region_name)
 
     if args.action == "create":
         provision_create(ec2_conn, iam_conn, args.interana_account_id, args.s3_bucket)
@@ -271,9 +286,9 @@ if __name__ == "__main__":
 
 """"
 TEST PLAN
-python provision.py -m <account_id> -s provision-test/datasets/* -a check
-python provision.py -m <account_id> -s provision-test/datasets/* -a create
+python provision.py -i <account_id> -s provision-test/datasets/* -a check
+python provision.py -i <account_id> -s provision-test/datasets/* -a create
 
-python provision.py -m <account_id> -s provision-test -a check
-python provision.py -m <account_id> -s provision-test -a create
+python provision.py -i <account_id> -s provision-test -a check
+python provision.py -i <account_id> -s provision-test -a create
 """""
