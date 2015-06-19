@@ -257,7 +257,7 @@ Assumes requirements.txt has been installed
     parser.add_argument('-a', '--action', help='Create or Check a configuration', choices=['create', 'check'],
                         required=True)
 
-    parser.add_argument('-a', '--aws_access_key',
+    parser.add_argument('-w', '--aws_access_key',
                         help='AWS Access key, None if using instance profile',
                         default=None)
 

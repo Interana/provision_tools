@@ -210,7 +210,7 @@ def main():
                         help='Specify a tag name and value, i.e. mycustomtag:True',
                         required=True)
 
-    parser.add_argument('-a', '--aws_access_key',
+    parser.add_argument('-w', '--aws_access_key',
                         help='AWS Access key, None if using instance profile',
                         default=None)
 

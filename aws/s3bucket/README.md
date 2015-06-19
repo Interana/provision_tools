@@ -42,17 +42,15 @@ In the next screen DOWNLOAD the Secret and Access key to your repository
 Role : AdministratorAccess
 ```
 
-Copy the Secret and Access key to a awsconfig.py file in this folder like this
+Copy the Secret and Access key to a ~/.aws/credentials 
 
 ```
-cp awsconfig.py.template awsconfig.py
-vim awsconfig.py
-
-Update the access_key, secret_key
-for region, fill out your desired region ex. us-east-1
-See this page for choices for region:
-http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html#concepts-regions
+[default]
+aws_access_key_id = XXXXXXXXX
+aws_secret_access_key = YYYYYYYYYYYYYYYYYYYYYYYY
 ```
+
+Alernatively they can be used in command line directgly
 
 6) Install the python requirements for this project (perferably using virtualenv or run with root privs)
 ```
@@ -62,8 +60,14 @@ pip install -r requirements.txt
 7) Run the provision.py script as follows to generate a bucket policy to share the S3 bucket from your interana account id
 i.e.
 ```
-python ./provision.py --s3_bucket 'my-bucket/my_path/*'  --interana_account_id 999999999999 --action create
+python ./provision.py --s3_bucket 'my-bucket/my_path/*'  --interana_account_id 999999999999 --action create 
 ```
+
+or
+```
+python ./provision.py --s3_bucket 'my-bucket/my_path/*'  --interana_account_id 999999999999 --action create -w <aws_access_key> -x <aws_secret_key>
+```
+
 
 8) In the folder, you will see a s3_bucket_list.policy.  Copy it contents and add it to your master accounts
 s3_bucket using the AWS Console:
@@ -90,6 +94,13 @@ Statement : [
 ```
 python ./provision.py --s3_bucket 'my-bucket/my_path/*'  --interana_account_id 999999999999 --action check
 ```
+
+or
+
+```
+python ./provision.py --s3_bucket 'my-bucket/my_path/*'  --interana_account_id 999999999999 --action check -w <aws_access_key> -x <aws_secret_key>
+```
+
 If the check is successfull, there will be a interana_cluster.json generated
 
 10) Review the interana_cluster.json for sensitive information and please email it to 
