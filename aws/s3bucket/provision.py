@@ -14,13 +14,6 @@ from boto.exception import S3ResponseError
 from boto.s3.key import Key
 from boto.s3.prefix import Prefix
 
-from awsconfig import awsconfig
-
-
-aws_access_key = awsconfig['aws_access_key']
-aws_secret_key = awsconfig['aws_secret_key']
-aws_region_name = awsconfig['aws_region_name']
-
 
 def utctimestamp():
     return timegm(datetime.utcnow().timetuple())
@@ -91,12 +84,12 @@ def check_account_setup(iam_conn):
     return user, all_policies
 
 
-def create_cluster_json(s3_bucket, user, all_policies):
+def create_cluster_json(ec2_conn, s3_bucket, user, all_policies):
     interana_cluster = dict()
 
-    interana_cluster['aws_access_key'] = awsconfig['aws_access_key']
-    interana_cluster['aws_secret_key'] = awsconfig['aws_secret_key']
-    interana_cluster['aws_region_name'] = awsconfig['aws_region_name']
+    interana_cluster['aws_access_key'] = ec2_conn.access_key
+    interana_cluster['aws_secret_key'] = ec2_conn.secret_key
+    interana_cluster['aws_region_name'] = ec2_conn.region
     interana_cluster['s3_bucket'] = s3_bucket
     interana_cluster['user'] = json.loads(json.dumps(user['get_user_response']['get_user_result']))
     interana_cluster['all_policies'] = json.loads(
@@ -235,7 +228,7 @@ def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path):
     else:
         raise Exception("FAILED: Was able to write to path {}".format(k.key))
 
-    create_cluster_json(s3_bucket_path, user, all_policies)
+    create_cluster_json(ec2_conn, s3_bucket_path, user, all_policies)
 
 
 def main():
@@ -271,9 +264,9 @@ Assumes requirements.txt has been installed
 
     args = parser.parse_args()
 
-    ec2_conn = get_ec2_connection(args.aws_access_key, args.aws_secret_key, args.aws_region_name)
-    iam_conn = get_iam_connection(args.aws_access_key, args.aws_secret_key, args.aws_region_name)
-    s3_conn = get_s3_connection(args.aws_access_key, args.aws_secret_key, args.aws_region_name)
+    ec2_conn = get_ec2_connection(args.aws_access_key, args.aws_secret_key, args.region)
+    iam_conn = get_iam_connection(args.aws_access_key, args.aws_secret_key, args.region)
+    s3_conn = get_s3_connection(args.aws_access_key, args.aws_secret_key, args.region)
 
     if args.action == "create":
         provision_create(ec2_conn, iam_conn, args.interana_account_id, args.s3_bucket)
