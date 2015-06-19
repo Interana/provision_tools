@@ -89,7 +89,7 @@ def create_cluster_json(ec2_conn, s3_bucket, user, all_policies):
 
     interana_cluster['aws_access_key'] = ec2_conn.access_key
     interana_cluster['aws_secret_key'] = ec2_conn.secret_key
-    interana_cluster['aws_region_name'] = ec2_conn.region
+    interana_cluster['aws_region_name'] = ec2_conn.region.name
     interana_cluster['s3_bucket'] = s3_bucket
     interana_cluster['user'] = json.loads(json.dumps(user['get_user_response']['get_user_result']))
     interana_cluster['all_policies'] = json.loads(
