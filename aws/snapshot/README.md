@@ -2,7 +2,7 @@
 
 # Description
 
-This procedure allows a interana customer to take a snapshot of ebs volumes on entire Interana cluster based on a tag.
+This procedure allows an interana customer to take a snapshot of ebs volumes on their entire Interana cluster based on a tag
 and then optionally share them with an account.  
 
 Be very sure of the interana_account_id you want to share with.  After the share is done, you will
@@ -52,11 +52,12 @@ pip install -r requirements.txt
 ```
 
 6) Using the make_snapshot script in this folder, execute the following to take an adhoc snapshot of all devices associated with your tag.
+Example ~/.aws/credentials
 ````
 ./make_snapshot.py -p adhoc -t Cluster:Interana -r us-east-1
 ````
 
-or
+or if using the command line option
 ```
 ./make_snapshot.py -p adhoc -t Cluster:Interana -r us-east-1 -w <aws_access_key> -x <aws_secret_key>
 ```
@@ -67,11 +68,12 @@ Ensure that the snapshots match the number of instances in step (4)
 
 
 8) Run the make_snapshot and share with your "interana_account_id" you've noted down at beginning of procedure.
+Example ~/.aws/credentials
 ```
 ./make_snapshot.py -p adhoc -t Cluster:Interana -r us-east-1 -s 99999999
 ```
 
-or
+or if using the command line option
 
 ```
 ./make_snapshot.py -p adhoc -t Cluster:Interana -r us-east-1  -w <aws_access_key> -x <aws_secret_key> -s 99999999
