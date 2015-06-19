@@ -15,6 +15,7 @@ It is extremely important that you only use the credentials with the new account
 # Steps
 
 Master Account - Your original AWS account that is used for billing
+
 Interana Account - The newly provision account that is used to run interana cluster.
 
 1) Git Clone the provision_tools repo, to a machine that has python installed (mac, linux, windows)
@@ -29,6 +30,7 @@ Please safe keep your root email and password for initial login for the Interana
 3) Open - https://console.aws.amazon.com/billing/home#/account and note your Account ID.
 
 4) Login into the account and navigate to the IAM Service.  Click on Users and create a new user with permissions as follows.
+
 Say Yes when prompted "Generate and Access key For Each User" checked.
 ```
 User : interana_admin
@@ -63,6 +65,7 @@ python ./provision.py --s3_bucket 'my-bucket/my_path/*' -r us-east-1   --interan
 ```
 
 or if using the command line option
+
 ```
 python ./provision.py --s3_bucket 'my-bucket/my_path/*' -r us-east-1  --interana_account_id 999999999999 --action create -w <aws_access_key> -x <aws_secret_key>
 ```
