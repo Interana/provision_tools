@@ -15,6 +15,7 @@ Interana Account - The newly provision AWS account that is used to run interana 
 
 You should have credentials aws_access_key and aws_secret_key of your master account 
 or leave these blank if you are using an instance profile, ~/.aws/configure, or any other pre-authorized method.
+
 Example ~/.aws/credentials
 ```
 [default]
@@ -52,6 +53,7 @@ pip install -r requirements.txt
 ```
 
 6) Using the make_snapshot script in this folder, execute the following to take an adhoc snapshot of all devices associated with your tag.
+
 Example ~/.aws/credentials
 ````
 ./make_snapshot.py -p adhoc -t Cluster:Interana -r us-east-1
@@ -68,6 +70,7 @@ Ensure that the snapshots match the number of instances in step (4)
 
 
 8) Run the make_snapshot and share with your "interana_account_id" you've noted down at beginning of procedure.
+
 Example ~/.aws/credentials
 ```
 ./make_snapshot.py -p adhoc -t Cluster:Interana -r us-east-1 -s 99999999
