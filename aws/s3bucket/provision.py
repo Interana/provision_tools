@@ -107,7 +107,6 @@ def create_cluster_json(ec2_conn, s3_bucket, user, all_policies, validated):
     with open('interana_cluster.json', 'w+') as fp_ic:
         json.dump(interana_cluster, fp_ic, indent=4)
 
-
     print json.dumps(interana_cluster, indent=True)
 
 
@@ -178,7 +177,7 @@ def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path, force):
 
     bucket_prefix = bucket_prefix_orig
     delim = "/"
- 
+
     if force:
         create_cluster_json(ec2_conn, s3_bucket_path, user, all_policies, False)
 
@@ -189,6 +188,19 @@ def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path, force):
         print "Checking Bucket for {} only access at prefix {}".format(access, "'{}'".format(bucket_prefix))
         try:
             bucket = s3_conn.get_bucket(bucket_name, validate=False)
+
+            regions_allowed = []
+            location = bucket.get_location()
+            if location == '':
+                regions_allowed = ['us-east-1']
+            else:
+                regions_allowed = [location]
+
+            if ec2_conn.region.name not in regions_allowed:
+                raise Exception(
+                    "EC2 Region {} not in S3 region(s) {}. Excess charges will occur".format(ec2_conn.region.name,
+                                                                                             regions_allowed))
+
             result_iter = list(bucket.list(bucket_prefix, delim))
             prefixes = [prefix.name for prefix in result_iter]
             if len(prefixes) < 1:
@@ -211,6 +223,7 @@ def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path, force):
 
     # Now attempt to download a  file
     bucket = s3_conn.get_bucket(bucket_name, validate=False)
+
     file_list = bucket.list(bucket_prefix_orig, '')
     downloaded = 0
     for filel in file_list:
@@ -274,7 +287,6 @@ Assumes requirements.txt has been installed
     parser.add_argument('-f', '--force',
                         help='Forces a generation of interana_cluster.json even if we dont pass validation',
                         default=False, action='store_true')
-
 
     args = parser.parse_args()
 
