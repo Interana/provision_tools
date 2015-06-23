@@ -41,7 +41,7 @@ def get_ec2_connection(aws_access_key_id, aws_secret_access_key, region_name):
                                  aws_secret_access_key=aws_secret_access_key,
                                  region_name=region_name)
     if conn is None:
-        raise Exception("Could not connection to region {}, invalid credentials.  See awsconfig.py".format(region_name))
+        raise Exception("Could not get ec2 connection to region {}, invalid credentials.".format(region_name))
 
     return conn
 
@@ -51,7 +51,7 @@ def get_iam_connection(aws_access_key_id, aws_secret_access_key, region_name):
                                  aws_secret_access_key=aws_secret_access_key,
                                  region_name=region_name)
     if conn is None:
-        raise Exception("Could not connection to region {}, invalid credentials.  See awsconfig.py".format(region_name))
+        raise Exception("Could not get iam connection to region {}, invalid credentials.".format(region_name))
 
     return conn
 
@@ -61,7 +61,7 @@ def get_s3_connection(aws_access_key_id, aws_secret_access_key, region_name):
                                 aws_secret_access_key=aws_secret_access_key,
                                 region_name=region_name)
     if conn is None:
-        raise Exception("Could not connection to region {}, invalid credentials.  See awsconfig.py".format(region_name))
+        raise Exception("Could not get s3 connection to region {}, invalid credentials.".format(region_name))
 
     return conn
 
@@ -84,7 +84,7 @@ def check_account_setup(iam_conn):
     return user, all_policies
 
 
-def create_cluster_json(ec2_conn, s3_bucket, user, all_policies):
+def create_cluster_json(ec2_conn, s3_bucket, user, all_policies, validated):
     interana_cluster = dict()
 
     interana_cluster['aws_access_key'] = ec2_conn.access_key
@@ -92,15 +92,21 @@ def create_cluster_json(ec2_conn, s3_bucket, user, all_policies):
     interana_cluster['aws_region_name'] = ec2_conn.region.name
     interana_cluster['s3_bucket'] = s3_bucket
     interana_cluster['user'] = json.loads(json.dumps(user['get_user_response']['get_user_result']))
+    interana_cluster['validated'] = validated
     interana_cluster['all_policies'] = json.loads(
         json.dumps(all_policies['list_user_policies_response']['list_user_policies_result']))
 
-    with open('s3_bucket_list.policy') as fh:
-        interana_cluster['s3_bucket_policy'] = json.load(fh)
+    if validated:
+        with open('s3_bucket_list.policy') as fh:
+            interana_cluster['s3_bucket_policy'] = json.load(fh)
+
+    else:
+        interana_cluster['s3_bucket_policy'] = dict()
 
     print "****interana_cluster.json contents.  Please email to support@interana.com***"
     with open('interana_cluster.json', 'w+') as fp_ic:
         json.dump(interana_cluster, fp_ic, indent=4)
+
 
     print json.dumps(interana_cluster, indent=True)
 
@@ -159,7 +165,7 @@ def get_bucket_name_prefix(s3_bucket_path):
     return bucket_name, bucket_prefix
 
 
-def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path):
+def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path, force):
     """
     Check the s3 bucket share has list properties, but not write
     Use "dummy_<date>.txt at root of bucket
@@ -172,6 +178,9 @@ def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path):
 
     bucket_prefix = bucket_prefix_orig
     delim = "/"
+ 
+    if force:
+        create_cluster_json(ec2_conn, s3_bucket_path, user, all_policies, False)
 
     iter = 0
     while bucket_prefix is not None:
@@ -187,8 +196,8 @@ def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path):
                     "Did not find any folders or files in prefix {} using delim {}".format(bucket_prefix, delim))
         except S3ResponseError, e:
             if iter == 0:
-                raise Exception("Failed to verify access on bucket {} path {}.\n"
-                                "Additional info : {}".format(bucket_name, bucket_prefix, print_exception(e)))
+                print_exception(e)
+                raise Exception("Failed to verify access on bucket {} path {}.\n".format(bucket_name, bucket_prefix))
         else:
             if iter > 0:
                 raise Exception(
@@ -228,7 +237,7 @@ def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path):
     else:
         raise Exception("FAILED: Was able to write to path {}".format(k.key))
 
-    create_cluster_json(ec2_conn, s3_bucket_path, user, all_policies)
+    create_cluster_json(ec2_conn, s3_bucket_path, user, all_policies, True)
 
 
 def main():
@@ -262,6 +271,11 @@ Assumes requirements.txt has been installed
                         help='region, i.e. us-east-1',
                         required=True)
 
+    parser.add_argument('-f', '--force',
+                        help='Forces a generation of interana_cluster.json even if we dont pass validation',
+                        default=False, action='store_true')
+
+
     args = parser.parse_args()
 
     ec2_conn = get_ec2_connection(args.aws_access_key, args.aws_secret_key, args.region)
@@ -271,7 +285,7 @@ Assumes requirements.txt has been installed
     if args.action == "create":
         provision_create(ec2_conn, iam_conn, args.interana_account_id, args.s3_bucket)
     elif args.action == "check":
-        provision_check(ec2_conn, iam_conn, s3_conn, args.s3_bucket)
+        provision_check(ec2_conn, iam_conn, s3_conn, args.s3_bucket, args.force)
 
 
 if __name__ == "__main__":
