@@ -84,7 +84,7 @@ def check_account_setup(iam_conn):
     return user, all_policies
 
 
-def create_cluster_json(ec2_conn, s3_bucket, user, all_policies, validated):
+def create_cluster_json(ec2_conn, s3_bucket, user, all_policies, validated, clustername):
     interana_cluster = dict()
 
     interana_cluster['aws_access_key'] = ec2_conn.access_key
@@ -95,6 +95,7 @@ def create_cluster_json(ec2_conn, s3_bucket, user, all_policies, validated):
     interana_cluster['validated'] = validated
     interana_cluster['all_policies'] = json.loads(
         json.dumps(all_policies['list_user_policies_response']['list_user_policies_result']))
+    interana_cluster['clustername'] = clustername
 
     if validated:
         with open('s3_bucket_list.policy') as fh:
@@ -164,7 +165,7 @@ def get_bucket_name_prefix(s3_bucket_path):
     return bucket_name, bucket_prefix
 
 
-def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path, force):
+def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path, clustername, force):
     """
     Check the s3 bucket share has list properties, but not write
     Use "dummy_<date>.txt at root of bucket
@@ -179,7 +180,7 @@ def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path, force):
     delim = "/"
 
     if force:
-        create_cluster_json(ec2_conn, s3_bucket_path, user, all_policies, False)
+        create_cluster_json(ec2_conn, s3_bucket_path, user, all_policies, False, clustername)
 
     iter = 0
     while bucket_prefix is not None:
@@ -250,7 +251,7 @@ def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path, force):
     else:
         raise Exception("FAILED: Was able to write to path {}".format(k.key))
 
-    create_cluster_json(ec2_conn, s3_bucket_path, user, all_policies, True)
+    create_cluster_json(ec2_conn, s3_bucket_path, user, all_policies, True, clustername)
 
 
 def main():
@@ -284,6 +285,12 @@ Assumes requirements.txt has been installed
                         help='region, i.e. us-east-1',
                         required=True)
 
+    parser.add_argument('-c', '--customername',
+                        help='The canonical customer name, shortest possible, no trailing integers. eg. acme',
+                        required=True)
+
+
+
     parser.add_argument('-f', '--force',
                         help='Forces a generation of interana_cluster.json even if we dont pass validation',
                         default=False, action='store_true')
@@ -297,7 +304,7 @@ Assumes requirements.txt has been installed
     if args.action == "create":
         provision_create(ec2_conn, iam_conn, args.interana_account_id, args.s3_bucket)
     elif args.action == "check":
-        provision_check(ec2_conn, iam_conn, s3_conn, args.s3_bucket, args.force)
+        provision_check(ec2_conn, iam_conn, s3_conn, args.s3_bucket, args.customername, args.force)
 
 
 if __name__ == "__main__":
@@ -305,9 +312,9 @@ if __name__ == "__main__":
 
 """"
 TEST PLAN
-python provision.py -i <account_id> -s provision-test/datasets/* -a check
-python provision.py -i <account_id> -s provision-test/datasets/* -a create
+python provision.py -i <account_id> -s provision-test/datasets/* -c acme -a check
+python provision.py -i <account_id> -s provision-test/datasets/* -c acme -a create
 
-python provision.py -i <account_id> -s provision-test -a check
-python provision.py -i <account_id> -s provision-test -a create
+python provision.py -i <account_id> -s provision-test -c acme -a check
+python provision.py -i <account_id> -s provision-test -c acme -a create
 """""
