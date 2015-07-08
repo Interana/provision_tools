@@ -231,7 +231,7 @@ def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path, clustername, fo
         if isinstance(filel, Prefix):
             continue
         local_name = os.path.basename(filel.key)
-        if local_name == '':
+        if local_name == '' or local_name == '.':
             continue
         filel.get_contents_to_filename(local_name)
         downloaded += 1
