@@ -47,7 +47,8 @@ Interana cluster is choose, and ONLY those instances are present (and not an oth
 Note down the number of instances.
 
 
-5) Install the python requirements for this project (perferably using virtualenv, must be run with root privs otherwise)
+5) Install the python requirements for this project (perferably using virtualenv, must be run with root privs otherwise).  
+YOU MUST use python 2.7.x or greater.
 ```
 pip install -r requirements.txt 
 ```
