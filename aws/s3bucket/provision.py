@@ -183,14 +183,16 @@ def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path, clustername, fo
         create_cluster_json(ec2_conn, s3_bucket_path, user, all_policies, False, clustername)
 
     iter = 0
+    file_list = []
+    bucket = None
     while bucket_prefix is not None:
 
         access = 'read allow' if iter == 0 else 'read deny'
-        print "Checking Bucket for {} only access at prefix {}".format(access, "'{}'".format(bucket_prefix))
+        print "Checking Bucket for {} only access at prefix {}.  " \
+              "This may take a while for large buckets".format(access, "'{}'".format(bucket_prefix))
         try:
             bucket = s3_conn.get_bucket(bucket_name, validate=False)
 
-            regions_allowed = []
             location = bucket.get_location()
             if location == '':
                 regions_allowed = ['us-east-1']
@@ -202,30 +204,40 @@ def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path, clustername, fo
                     "EC2 Region {} not in S3 region(s) {}. Excess charges will occur".format(ec2_conn.region.name,
                                                                                              regions_allowed))
 
-            result_iter = list(bucket.list(bucket_prefix, delim))
+            # Try to download the latest file in bucket, sometimes some files are in glacier
+            result_iter = []
+            max_files = 100
+            for num, prefix in enumerate(bucket.list(bucket_prefix, delim)):
+                if num >= max_files:
+                    index = num % max_files
+                    result_iter[index] = prefix
+                else:
+                    result_iter.append(prefix)
+
             prefixes = [prefix.name for prefix in result_iter]
             if len(prefixes) < 1:
                 raise Exception(
                     "Did not find any folders or files in prefix {} using delim {}".format(bucket_prefix, delim))
+            file_list = result_iter
         except S3ResponseError, e:
             if iter == 0:
                 print_exception(e)
                 raise Exception("Failed to verify access on bucket {} path {}.\n".format(bucket_name, bucket_prefix))
+
         else:
             if iter > 0:
                 raise Exception(
                     "Unexpected Read Access is granted on path on bucket prefix {}.\n".format(bucket_prefix))
 
+        if len(bucket_prefix) > 0 and bucket_prefix[-1] == '/':
+            bucket_prefix = bucket_prefix[0:-1]
         if len(bucket_prefix) > 0:
             bucket_prefix = '/'.join(bucket_prefix.split('/')[0:-1])
             iter += 1
         else:
             bucket_prefix = None
 
-    # Now attempt to download a  file
-    bucket = s3_conn.get_bucket(bucket_name, validate=False)
-
-    file_list = bucket.list(bucket_prefix_orig, '')
+    # Now attempt to download a file.  We get file list from previous
     downloaded = 0
     for filel in file_list:
         if isinstance(filel, Prefix):
@@ -267,7 +279,9 @@ Assumes requirements.txt has been installed
                         required=True)
 
     parser.add_argument('-s', '--s3_bucket', help='The s3_bucket and path spec. '
-                                                  'Dont use wildcards, ex. my-bucket/my_path/',
+                                                  'Dont use wildcards, eg:'
+                                                  'my-bucket/my_path/'
+                                                  'my-bucket/',
                         required='True')
 
     parser.add_argument('-a', '--action', help='Create or Check a configuration', choices=['create', 'check'],
@@ -288,8 +302,6 @@ Assumes requirements.txt has been installed
     parser.add_argument('-c', '--customername',
                         help='The canonical customer name, shortest possible, no trailing integers. eg. acme',
                         required=True)
-
-
 
     parser.add_argument('-f', '--force',
                         help='Forces a generation of interana_cluster.json even if we dont pass validation',
