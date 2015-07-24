@@ -165,6 +165,20 @@ def get_bucket_name_prefix(s3_bucket_path):
     return bucket_name, bucket_prefix
 
 
+class VerificationComplete(Exception):
+    pass
+
+
+def download_callback_verifier(num_bytes, total_bytes):
+    """
+    Amazon will call this after each chunk.  Once we've verified that a chunk has been downloaded, just
+    raise an exception so we don't finish the download
+    """
+    if num_bytes > 0:
+        msg = "Verified Read access, with partial download {}/{} MiB".format(num_bytes / 1.e6, total_bytes / 1.e6)
+        raise VerificationComplete(msg)
+
+
 def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path, clustername, force):
     """
     Check the s3 bucket share has list properties, but not write
@@ -188,31 +202,51 @@ def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path, clustername, fo
     while bucket_prefix is not None:
 
         access = 'read allow' if iter == 0 else 'read deny'
-        print "Checking Bucket for {} only access at prefix {}.  " \
-              "This may take a while for large buckets".format(access, "'{}'".format(bucket_prefix))
         try:
             bucket = s3_conn.get_bucket(bucket_name, validate=False)
 
-            location = bucket.get_location()
-            if location == '':
-                regions_allowed = ['us-east-1']
+            location = ''
+            print "Checking Region..."
+            try:
+                location = bucket.get_location()
+            except Exception, e:
+                print "Warning, location of bucket is not accessible, customer to ensure location is {}".format(
+                    ec2_conn.region.name)
             else:
-                regions_allowed = [location]
+                if location == '':
+                    regions_allowed = ['us-east-1']
+                else:
+                    regions_allowed = [location]
 
-            if ec2_conn.region.name not in regions_allowed:
-                raise Exception(
-                    "EC2 Region {} not in S3 region(s) {}. Excess charges will occur".format(ec2_conn.region.name,
-                                                                                             regions_allowed))
+                if ec2_conn.region.name not in regions_allowed:
+                    raise Exception(
+                        "EC2 Region {} not in S3 region(s) {}. Excess charges will occur".format(ec2_conn.region.name,
+                                                                                                 regions_allowed))
 
             # Try to download the latest file in bucket, sometimes some files are in glacier
+            print "Checking Bucket for {} only access at prefix {}.  " \
+                  "This may take a while for large buckets".format(access, "'{}'".format(bucket_prefix))
+
             result_iter = []
             max_files = 100
-            for num, prefix in enumerate(bucket.list(bucket_prefix, delim)):
-                if num >= max_files:
-                    index = num % max_files
-                    result_iter[index] = prefix
-                else:
-                    result_iter.append(prefix)
+            next_prefixes = [Prefix(bucket, bucket_prefix)]
+            while len(result_iter) == 0 and next_prefixes > 0:
+                prefixes = next_prefixes
+                next_prefixes = []
+                for prefix in sorted(prefixes, reverse=True):
+                    print "Viewing folder {}".format(prefix.name)
+                    for num, item in enumerate(bucket.list(prefix.name, delim)):
+                        if isinstance(item, Prefix):
+                            print 'Folder={}'.format(item.name)
+                            next_prefixes.append(item)
+                            continue
+                        if num >= max_files:
+                            index = num % max_files
+                            result_iter[index] = item
+                        else:
+                            result_iter.append(item)
+                    if len(result_iter) > 0:
+                        break
 
             prefixes = [prefix.name for prefix in result_iter]
             if len(prefixes) < 1:
@@ -238,6 +272,7 @@ def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path, clustername, fo
             bucket_prefix = None
 
     # Now attempt to download a file.  We get file list from previous
+    print "Downloading file to ensure GET access is provided"
     downloaded = 0
     for filel in file_list:
         if isinstance(filel, Prefix):
@@ -245,8 +280,13 @@ def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path, clustername, fo
         local_name = os.path.basename(filel.key)
         if local_name == '' or local_name == '.':
             continue
-        filel.get_contents_to_filename(local_name)
-        downloaded += 1
+
+        try:
+            filel.get_contents_to_filename(local_name, cb=download_callback_verifier, num_cb=1000)
+        except VerificationComplete, e:
+            print e.message
+        finally:
+            downloaded += 1
         break
 
     if downloaded < 1:
