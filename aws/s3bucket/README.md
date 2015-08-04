@@ -61,13 +61,13 @@ pip install -r requirements.txt
 
 Example ~/.aws/credentials
 ```
-python ./provision.py --s3_bucket 'my-bucket/my_path/*' -r us-east-1   --interana_account_id 999999999999 --action create 
+python ./provision.py --s3_bucket 'my-bucket/my_path/' -r us-east-1   --interana_account_id 999999999999 --action create -c mycustomer
 ```
 
 or if using the command line option
 
 ```
-python ./provision.py --s3_bucket 'my-bucket/my_path/*' -r us-east-1  --interana_account_id 999999999999 --action create -w <aws_access_key> -x <aws_secret_key>
+python ./provision.py --s3_bucket 'my-bucket/my_path/' -r us-east-1  --interana_account_id 999999999999 --action create -c mycustomer -w <aws_access_key> -x <aws_secret_key>
 ```
 
 
@@ -96,13 +96,13 @@ Statement : [
 
 Example ~/.aws/credentials
 ```
-python ./provision.py --s3_bucket 'my-bucket/my_path/*' -r us-east-1 --interana_account_id 999999999999 --action check
+python ./provision.py --s3_bucket 'my-bucket/my_path/' -r us-east-1 --interana_account_id 999999999999 --action check -c mycustomer
 ```
 
 or if using the command line option
 
 ```
-python ./provision.py --s3_bucket 'my-bucket/my_path/*' -r us-east-1 --interana_account_id 999999999999 --action check -w <aws_access_key> -x <aws_secret_key>
+python ./provision.py --s3_bucket 'my-bucket/my_path/' -r us-east-1 --interana_account_id 999999999999 --action check -c mycustomer -w <aws_access_key> -x <aws_secret_key>
 ```
 
 If the check is successfull, there will be a interana_cluster.json generated
