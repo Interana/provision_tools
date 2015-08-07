@@ -13,7 +13,7 @@
             "Resource": "arn:aws:s3:::<BUCKET_NAME>"
         },
         {
-            "Sid": "AllowReadAccessToInterana",
+            "Sid": "AllowListAccessToInterana",
             "Effect": "Allow",
             "Principal": {
                 "AWS": "arn:aws:iam::<INTERANA_ACCOUNT_ID>:root"
@@ -39,7 +39,8 @@
                 "AWS": "arn:aws:iam::<INTERANA_ACCOUNT_ID>:root"
             },
             "Action": [
-                "s3:GetObject"
+                "s3:GetObject",
+                "s3:RestoreObject"
             ],
             "Resource": [
                 "arn:aws:s3:::<BUCKET_NAME>/<BUCKET_PREFIX>*"
