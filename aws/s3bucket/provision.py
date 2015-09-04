@@ -111,7 +111,7 @@ def create_cluster_json(ec2_conn, s3_bucket, user, all_policies, validated, clus
     print json.dumps(interana_cluster, indent=True)
 
 
-def provision_create(ec2_conn, iam_conn, interana_account_id, s3_bucket_path):
+def provision_create(ec2_conn, iam_conn, interana_account_id, s3_bucket_paths):
     """
     Make the s3 bucket policy and let user configure with it
     If we specify the root bucket, we have t remove the "Condition" as it does allow
@@ -122,7 +122,17 @@ def provision_create(ec2_conn, iam_conn, interana_account_id, s3_bucket_path):
     infile = 's3_bucket_list.policy.template'
     outfile = 's3_bucket_list.policy'
 
-    bucket_name, bucket_prefix = get_bucket_name_prefix(s3_bucket_path)
+    bucket_prefixes = []
+    bucket_full_paths = []
+    bucket_name = None
+    for s3_bucket_path in s3_bucket_paths:
+        bucket_name, bucket_prefix = get_bucket_name_prefix(s3_bucket_path)
+        bucket_prefixes.append(bucket_prefix)
+        bucket_full_paths.append(os.path.join('arn:aws:s3:::' + bucket_name, bucket_prefix, "*"))
+
+    bucket_prefixes_list = '"{}"'.format('",\n"'.join(bucket_prefixes))
+
+    arn_full_bucket_list = '"{}"'.format('",\n"'.join(bucket_full_paths))
 
     all_lines = ''
     with open(infile, 'r') as tmp_fh, open(outfile, 'w') as out_fh:
@@ -133,24 +143,28 @@ def provision_create(ec2_conn, iam_conn, interana_account_id, s3_bucket_path):
             re_proxy = re.compile('<BUCKET_NAME>')
             translate = re_proxy.sub(bucket_name, translate)
 
-            re_proxy = re.compile('<BUCKET_PREFIX>')
-            translate = re_proxy.sub(bucket_prefix, translate)
+            re_proxy = re.compile('<BUCKET_PREFIX_LIST>')
+            translate = re_proxy.sub(bucket_prefixes_list, translate)
+
+            re_proxy = re.compile('<ARN_FULL_BUCKET_LIST>')
+            translate = re_proxy.sub(arn_full_bucket_list, translate)
 
             out_fh.write(translate)
             all_lines += translate.strip()
 
-    if len(bucket_prefix) < 1:
-        with open(outfile, 'r') as in_fh:
-            policy = json.load(in_fh)
-            del policy['Statement'][1]['Condition']
-            all_lines = json.dumps(policy)
-            print "Download file to check GetObject Access {}".format(outfile)
-            with open(outfile, 'w') as out_fh:
-                json.dump(policy, out_fh, indent=4)
+    with open(outfile, 'r') as in_fh:
+        policy = json.load(in_fh)
+
+    if len(bucket_prefixes_list) == 1 and len(bucket_prefixes_list[0]) < 1:
+        del policy['Statement'][1]['Condition']
+        all_lines = json.dumps(policy)
+
+    with open(outfile, 'w') as out_fh:
+        json.dump(policy, out_fh, indent=4)
 
     print "****policy file {}***".format(outfile)
 
-    print json.dumps(json.loads(all_lines), indent=True)
+    print json.dumps(json.loads(all_lines), indent=4)
 
 
 def get_bucket_name_prefix(s3_bucket_path):
@@ -318,10 +332,11 @@ Assumes requirements.txt has been installed
     parser.add_argument('-i', '--interana_account_id', help='The interana account id, without dashes',
                         required=True)
 
-    parser.add_argument('-s', '--s3_bucket', help='The s3_bucket and path spec. '
+    parser.add_argument('-s', '--s3_bucket', help='The s3_bucket and path spec. Multiple are seperated by comma '
                                                   'Dont use wildcards, eg:'
                                                   'my-bucket/my_path/'
                                                   'my-bucket/',
+                        type=lambda x: x.split(','),
                         required='True')
 
     parser.add_argument('-a', '--action', help='Create or Check a configuration', choices=['create', 'check'],

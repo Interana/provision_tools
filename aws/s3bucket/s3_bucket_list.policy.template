@@ -27,7 +27,7 @@
             "Condition": {
                 "StringLike": {
                     "s3:prefix": [
-                        "<BUCKET_PREFIX>"
+                        <BUCKET_PREFIX_LIST>
                     ]
                 }
             }
@@ -43,7 +43,7 @@
                 "s3:RestoreObject"
             ],
             "Resource": [
-                "arn:aws:s3:::<BUCKET_NAME>/<BUCKET_PREFIX>*"
+                <ARN_FULL_BUCKET_LIST>
             ]
         }
     ]
