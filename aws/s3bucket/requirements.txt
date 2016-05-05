@@ -1,2 +1,4 @@
 boto==2.38.0
 cloudformation==0.0.0
+python-dateutil==2.5.3
+pytz==2016.4

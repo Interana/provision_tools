@@ -9,10 +9,13 @@ import re
 import sys
 import traceback
 
+import pytz
 from boto import ec2, iam, s3
 from boto.exception import S3ResponseError
 from boto.s3.key import Key
 from boto.s3.prefix import Prefix
+from datetime import timedelta
+import dateutil.parser
 
 
 def utctimestamp():
@@ -66,20 +69,20 @@ def get_s3_connection(aws_access_key_id, aws_secret_access_key, region_name):
     return conn
 
 
-def check_account_setup(iam_conn):
+def check_account_setup(iam_conn, interana_user):
     """
     Check the credentials, such that the admin access is setup and the user is interana_admin
     """
     print "Checking Account Setup for interana_admin and policies."
 
-    user = iam_conn.get_user('interana_admin')
+    user = iam_conn.get_user(interana_user)
 
     if 'user_name' not in user['get_user_response']['get_user_result']['user']:
         raise Exception("User interana_admin was not found. Additional Info {}".format(user))
 
-    all_policies = iam_conn.get_all_user_policies('interana_admin')
+    all_policies = iam_conn.get_all_user_policies(interana_user)
     if 'policy_names' not in all_policies['list_user_policies_response']['list_user_policies_result']:
-        raise Exception("interana_admin user does not appear to had AdministorAccess policy attached")
+        raise Exception("{} user does not appear to had AdministratorAccess policy attached".format(interana_user))
 
     return user, all_policies
 
@@ -91,18 +94,20 @@ def create_cluster_json(ec2_conn, s3_bucket, user, all_policies, validated, clus
     interana_cluster['aws_secret_key'] = ec2_conn.secret_key
     interana_cluster['aws_region_name'] = ec2_conn.region.name
     interana_cluster['s3_bucket'] = s3_bucket
-    interana_cluster['user'] = json.loads(json.dumps(user['get_user_response']['get_user_result']))
+    interana_cluster['user'] = None if user is None else json.loads(
+        json.dumps(user['get_user_response']['get_user_result']))
     interana_cluster['validated'] = validated
-    interana_cluster['all_policies'] = json.loads(
+    interana_cluster['all_policies'] = None if all_policies is None else json.loads(
         json.dumps(all_policies['list_user_policies_response']['list_user_policies_result']))
     interana_cluster['clustername'] = clustername
 
     if validated:
         with open('s3_bucket_list.policy') as fh:
             interana_cluster['s3_bucket_policy'] = json.load(fh)
-
     else:
         interana_cluster['s3_bucket_policy'] = dict()
+        print("Warning : Failed validation, please check log above for warnings")
+
 
     print "****interana_cluster.json contents.  Please email to support@interana.com***"
     with open('interana_cluster.json', 'w+') as fp_ic:
@@ -111,13 +116,16 @@ def create_cluster_json(ec2_conn, s3_bucket, user, all_policies, validated, clus
     print json.dumps(interana_cluster, indent=True)
 
 
-def provision_create(ec2_conn, iam_conn, interana_account_id, s3_bucket_path):
+def provision_create(ec2_conn, iam_conn, interana_account_id, s3_bucket_path, interana_user):
     """
     Make the s3 bucket policy and let user configure with it
     If we specify the root bucket, we have t remove the "Condition" as it does allow
     wildcard at root.
     """
-    check_account_setup(iam_conn)
+    try:
+        user, all_policies = check_account_setup(iam_conn, interana_user)
+    except Exception, e:
+        print "Warning could not verify user interana_user {} because {}".format(interana_user, e)
 
     infile = 's3_bucket_list.policy.template'
     outfile = 's3_bucket_list.policy'
@@ -161,6 +169,8 @@ def get_bucket_name_prefix(s3_bucket_path):
     bucket_prefix = ""
     if len(bucket_path) > 1:
         bucket_prefix = '/'.join(bucket_path[1:])
+        bucket_prefix = os.path.join(bucket_prefix,'*')
+
 
     return bucket_name, bucket_prefix
 
@@ -179,16 +189,58 @@ def download_callback_verifier(num_bytes, total_bytes):
         raise VerificationComplete(msg)
 
 
-def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path, clustername, force):
+def download_files(file_list, max_days=7):
+    tzinfo = pytz.timezone('UTC')
+    cut_off = datetime.now().replace(tzinfo=None) - timedelta(days=7)
+    downloaded = 0
+    saved_e = None
+    for filel in file_list:
+        if isinstance(filel, Prefix):
+            continue
+        local_name = os.path.basename(filel.key)
+        if local_name == '' or local_name == '.':
+            continue
+        last_modified = dateutil.parser.parse(filel.last_modified)
+        last_modified = last_modified.replace(tzinfo=None)
+        try:
+            filel.get_contents_to_filename(local_name, cb=download_callback_verifier, num_cb=1000)
+            downloaded += 1
+        except VerificationComplete, e:
+            print e.message
+            downloaded += 1
+        except Exception, e:
+            if last_modified < cut_off:
+                saved_e = e
+                continue
+            print "File could not be downloaded {} because {}".format(filel.key,e)
+            return 0
+    if downloaded == 0:
+        print "File could not be downloaded {} because {}".format(filel.key, e)
+
+
+
+
+
+def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path, clustername, force, interana_user):
     """
     Check the s3 bucket share has list properties, but not write
     Use "dummy_<date>.txt at root of bucket
     Create interana_cluster.json and allow user to send that off.
     @TODO should recursively check up the tree to be more sure.
     """
-    user, all_policies = check_account_setup(iam_conn)
+    validated = True
+    try:
+        user, all_policies = check_account_setup(iam_conn, interana_user)
+    except Exception, e:
+        print "Warning could not verify user interana_user {} because {}".format(interana_user, e)
+        user = None
+        all_policies = None
+        validated = False
 
     bucket_name, bucket_prefix_orig = get_bucket_name_prefix(s3_bucket_path)
+
+    # * belongs in policy not in search
+    bucket_prefix_orig = bucket_prefix_orig.replace('*','')
 
     bucket_prefix = bucket_prefix_orig
     delim = "/"
@@ -199,6 +251,8 @@ def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path, clustername, fo
     iter = 0
     file_list = []
     bucket = None
+    downloaded = 0
+    result_iter = []
     while bucket_prefix is not None:
 
         access = 'read allow' if iter == 0 else 'read deny'
@@ -230,12 +284,12 @@ def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path, clustername, fo
             result_iter = []
             max_files = 100
             next_prefixes = [Prefix(bucket, bucket_prefix)]
-            while len(result_iter) == 0 and next_prefixes > 0:
+            while len(result_iter) == 0 and len(next_prefixes) > 0:
                 prefixes = next_prefixes
                 next_prefixes = []
                 for prefix in sorted(prefixes, reverse=True):
                     print "Viewing folder {}".format(prefix.name)
-                    for num, item in enumerate(bucket.list(prefix.name, delim)):
+                    for num, item in enumerate(sorted(bucket.list(prefix.name, delim), reverse=True)):
                         if isinstance(item, Prefix):
                             print 'Folder={}'.format(item.name)
                             next_prefixes.append(item)
@@ -245,14 +299,23 @@ def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path, clustername, fo
                             result_iter[index] = item
                         else:
                             result_iter.append(item)
-                    if len(result_iter) > 0:
-                        break
 
+                    if len(result_iter) > 0:
+                        # Now attempt to download a file.  We get file list from previous
+                        print "Attempting to Download file to ensure GET access is provided"
+                        downloaded = download_files(result_iter)
+                        if downloaded > 0:
+                            break
+                if downloaded > 0:
+                    break
             prefixes = [prefix.name for prefix in result_iter]
-            if len(prefixes) < 1:
-                raise Exception(
-                    "Did not find any folders or files in prefix {} using delim {}".format(bucket_prefix, delim))
-            file_list = result_iter
+            if iter == 0 and  len(prefixes) < 1:
+                validated = False
+
+                print("Warning : "
+                       "Did not find any folders or files in prefix {} using delim {}.  "
+                      "Please upload at least 1 file".format(bucket_prefix, delim))
+                break
         except S3ResponseError, e:
             if iter == 0:
                 print_exception(e)
@@ -271,26 +334,9 @@ def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path, clustername, fo
         else:
             bucket_prefix = None
 
-    # Now attempt to download a file.  We get file list from previous
-    print "Downloading file to ensure GET access is provided"
-    downloaded = 0
-    for filel in file_list:
-        if isinstance(filel, Prefix):
-            continue
-        local_name = os.path.basename(filel.key)
-        if local_name == '' or local_name == '.':
-            continue
-
-        try:
-            filel.get_contents_to_filename(local_name, cb=download_callback_verifier, num_cb=1000)
-        except VerificationComplete, e:
-            print e.message
-        finally:
-            downloaded += 1
-        break
-
     if downloaded < 1:
-        raise Exception("Could not download any files, is this the correct bucket prefix {}".format(bucket_prefix))
+        validated = False
+        print("Warning : Could not download any files, check if is this the correct bucket prefix {}".format(bucket_prefix_orig ))
 
     testfile = 'dummy.txt'
 
@@ -299,17 +345,18 @@ def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path, clustername, fo
         k.key = os.path.join(bucket_prefix_orig, testfile + '.' + str(utctimestamp()))
         k.set_contents_from_filename(testfile)
     except S3ResponseError, e:
-        print "Successfully verified read only access"
+        print "verified read only access to path {} ".format(bucket_prefix_orig)
     else:
         raise Exception("FAILED: Was able to write to path {}".format(k.key))
 
-    create_cluster_json(ec2_conn, s3_bucket_path, user, all_policies, True, clustername)
+    create_cluster_json(ec2_conn, s3_bucket_path, user, all_policies, validated, clustername)
 
 
 def main():
     """
     """
     parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawTextHelpFormatter,
         description="Provision account for Interana Cluster",
         epilog="""
 Assumes requirements.txt has been installed
@@ -318,10 +365,11 @@ Assumes requirements.txt has been installed
     parser.add_argument('-i', '--interana_account_id', help='The interana account id, without dashes',
                         required=True)
 
-    parser.add_argument('-s', '--s3_bucket', help='The s3_bucket and path spec. '
-                                                  'Dont use wildcards, eg:'
-                                                  'my-bucket/my_path/'
-                                                  'my-bucket/',
+    parser.add_argument('-s', '--s3_bucket', help="""The s3_bucket and path spec.
+Dont use wildcards(*),
+eg:
+my-bucket/my_path/
+my-bucket""",
                         required='True')
 
     parser.add_argument('-a', '--action', help='Create or Check a configuration', choices=['create', 'check'],
@@ -347,25 +395,33 @@ Assumes requirements.txt has been installed
                         help='Forces a generation of interana_cluster.json even if we dont pass validation',
                         default=False, action='store_true')
 
+    parser.add_argument('-u', '--user',
+                        help='The IAM user that owns the access/secret key. Default is interana_admin, only change'
+                             'if you are an expert',
+                        default="interana_admin")
+
     args = parser.parse_args()
+
+    if "*" in args.s3_bucket:
+        raise Exception("Do not use wildcard in bucket path {}".format(args.s3_bucket))
 
     ec2_conn = get_ec2_connection(args.aws_access_key, args.aws_secret_key, args.region)
     iam_conn = get_iam_connection(args.aws_access_key, args.aws_secret_key, args.region)
     s3_conn = get_s3_connection(args.aws_access_key, args.aws_secret_key, args.region)
 
     if args.action == "create":
-        provision_create(ec2_conn, iam_conn, args.interana_account_id, args.s3_bucket)
+        provision_create(ec2_conn, iam_conn, args.interana_account_id, args.s3_bucket, args.user)
     elif args.action == "check":
-        provision_check(ec2_conn, iam_conn, s3_conn, args.s3_bucket, args.customername, args.force)
+        provision_check(ec2_conn, iam_conn, s3_conn, args.s3_bucket, args.customername, args.force, args.user)
 
 
 if __name__ == "__main__":
     main()
 
 """"
-TEST PLAN
-python provision.py -i <account_id> -s provision-test/datasets/* -c acme -a check
-python provision.py -i <account_id> -s provision-test/datasets/* -c acme -a create
+TEST PLAN using account
+python provision.py -i <account_id> -s provision-test/datasets/ -c acme -a check
+python provision.py -i <account_id> -s provision-test/datasets/ -c acme -a create
 
 python provision.py -i <account_id> -s provision-test -c acme -a check
 python provision.py -i <account_id> -s provision-test -c acme -a create
