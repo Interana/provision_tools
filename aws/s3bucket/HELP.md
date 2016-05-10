@@ -19,3 +19,9 @@ check the bucket name and path if applicable
 
 This occurs when the object is in glacier.  Ensure some objects exist that are in S3 standard storage type
 
+
+## <class 'boto.exception.S3ResponseError'>:S3ResponseError: 301 Moved Permanently <?xml version="1.0" encoding="UTF-8"?> 
+<Error><Code>PermanentRedirect</Code><Message>The bucket you are attempting to access must be addressed using the specified endpoint. Please send all future requests to this endpoint.</Message>
+
+This occurs when the wrong region is specified.  Please review your bucket and ensure the correct region is passed into the script
+

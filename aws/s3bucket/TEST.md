@@ -69,7 +69,7 @@ Expected Resuts
 ```
 <class 'boto.exception.S3ResponseError'>:S3ResponseError: 403 Forbidden
 <?xml version="1.0" encoding="UTF-8"?>
-<Error><Code>AccessDenied</Code><Message>Access Denied</Message><RequestId>22643A4482DB80FA</RequestId><HostId>ZU8k8Uz5UYDOwksx78IzeYDnMhtgIAlcD/ZCfVadNGdOZknHhDwcTDEloTSizuwY</HostId></Error>
+<Error><Code>AccessDenied</Code><Message>Access Denied</Message>
 ```
 
 
@@ -83,4 +83,29 @@ Expected Resuts
 ```
 No files could be downloaded, moving to next folder. S3ResponseError: 403 Forbidden
 <Error><Code>InvalidObjectState</Code><Message>The operation is not valid for the object's storage class</Message>
+```
+
+# Additional Tests 
+
+
+## interana-logs bucket (check only)
+```
+./provision.py -i 681624442818 -s interana-logs -c acme -a check -r us-east-1 -w www -x xxx -u interana_admin
+```
+
+Expected Resuts
+```
+TBD
+```
+
+
+## interana-logs-us-west-2
+```
+./provision.py -i 681624442818 -s interana-logs-us-west-2/ -c acme -a check -r us-west-2 -w www -x xxx -u interana_logs_readonly
+./provision.py -i 681624442818 -s interana-logs-us-west-2/ -c acme -a check -r us-west-2 -w www -x xxx -u interana_logs_readonly
+```
+
+Expected Resuts
+```
+TBD
 ```
