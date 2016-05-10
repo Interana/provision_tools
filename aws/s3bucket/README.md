@@ -10,6 +10,7 @@ Our solution creates a completely firewalled account using VPC and allow you to 
 
 It is extremely important that you only use the credentials with the new account in running scripts.  DO NOT PASTE IN YOUR MASTER ACCOUNT access keys.
 
+If encountering problems, refer to HELP.md
 
 
 # Steps
@@ -58,6 +59,7 @@ pip install -r requirements.txt
 ```
 
 7) Run the provision.py script as follows to generate a bucket policy to share the S3 bucket from your interana account id.
+For the s3_bucket path, you may specify just the bucket name (preferred) or a path if fine grain controls are prefered
 
 Example ~/.aws/credentials
 ```
@@ -93,6 +95,8 @@ Statement : [
 ```
 
 9) Re run the ./provision.py with to check all permissions are correctly stated.  You will need your account id from the My Account tab.
+You must also have at least one file newly uploaded file (> 7 days)
+in the s3 bucket under the path below so read access can be confirmed.
 
 Example ~/.aws/credentials
 ```

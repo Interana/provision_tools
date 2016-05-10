@@ -204,9 +204,13 @@ def download_files(file_list, max_days=7):
         try:
             filel.get_contents_to_filename(local_name, cb=download_callback_verifier, num_cb=1000)
             downloaded += 1
+            print "Downloaded Verified {}".format(filel.key)
+            break
         except VerificationComplete, e:
             print e.message
             downloaded += 1
+            print "Downloaded Verified {}".format(filel.key)
+            break
         except Exception, e:
             if last_modified < cut_off:
                 saved_e = e
@@ -214,7 +218,7 @@ def download_files(file_list, max_days=7):
             print "File could not be downloaded {} because {}".format(filel.key, e)
             return 0
     if downloaded == 0:
-        print "File could not be downloaded {} because {}".format(filel.key, e)
+        print "No files could be downloaded, moving to next folder. {}".format(saved_e or '')
 
     return downloaded
 
@@ -432,12 +436,3 @@ my-bucket""",
 
 if __name__ == "__main__":
     main()
-
-""""
-TEST PLAN using account
-python provision.py -i <account_id> -s provision-test/datasets/ -c acme -a check
-python provision.py -i <account_id> -s provision-test/datasets/ -c acme -a create
-
-python provision.py -i <account_id> -s provision-test -c acme -a check
-python provision.py -i <account_id> -s provision-test -c acme -a create
-"""""
