@@ -87,7 +87,7 @@ def check_account_setup(iam_conn, interana_user):
     return user, all_policies
 
 
-def create_cluster_json(ec2_conn, s3_bucket, user, all_policies, validated, clustername):
+def create_cluster_json(ec2_conn, s3_bucket, user, all_policies, validated, clustername, reasons):
     interana_cluster = dict()
 
     interana_cluster['aws_access_key'] = ec2_conn.access_key
@@ -97,6 +97,7 @@ def create_cluster_json(ec2_conn, s3_bucket, user, all_policies, validated, clus
     interana_cluster['user'] = None if user is None else json.loads(
         json.dumps(user['get_user_response']['get_user_result']))
     interana_cluster['validated'] = validated
+    interana_cluster['validation_warnings'] = reasons
     interana_cluster['all_policies'] = None if all_policies is None else json.loads(
         json.dumps(all_policies['list_user_policies_response']['list_user_policies_result']))
     interana_cluster['clustername'] = clustername
@@ -107,7 +108,6 @@ def create_cluster_json(ec2_conn, s3_bucket, user, all_policies, validated, clus
     else:
         interana_cluster['s3_bucket_policy'] = dict()
         print("Warning : Failed validation, please check log above for warnings")
-
 
     print "****interana_cluster.json contents.  Please email to support@interana.com***"
     with open('interana_cluster.json', 'w+') as fp_ic:
@@ -169,8 +169,7 @@ def get_bucket_name_prefix(s3_bucket_path):
     bucket_prefix = ""
     if len(bucket_path) > 1:
         bucket_prefix = '/'.join(bucket_path[1:])
-        bucket_prefix = os.path.join(bucket_prefix,'*')
-
+        bucket_prefix = os.path.join(bucket_prefix, '*')
 
     return bucket_name, bucket_prefix
 
@@ -212,13 +211,12 @@ def download_files(file_list, max_days=7):
             if last_modified < cut_off:
                 saved_e = e
                 continue
-            print "File could not be downloaded {} because {}".format(filel.key,e)
+            print "File could not be downloaded {} because {}".format(filel.key, e)
             return 0
     if downloaded == 0:
         print "File could not be downloaded {} because {}".format(filel.key, e)
 
-
-
+    return downloaded
 
 
 def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path, clustername, force, interana_user):
@@ -229,30 +227,32 @@ def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path, clustername, fo
     @TODO should recursively check up the tree to be more sure.
     """
     validated = True
+    warning_reasons = []
     try:
         user, all_policies = check_account_setup(iam_conn, interana_user)
     except Exception, e:
-        print "Warning could not verify user interana_user {} because {}".format(interana_user, e)
         user = None
         all_policies = None
         validated = False
+        reasons = "Warning could not verify user interana_user {} because {}".format(interana_user, e)
+        print reasons
+        warning_reasons.append(reasons)
+
 
     bucket_name, bucket_prefix_orig = get_bucket_name_prefix(s3_bucket_path)
 
     # * belongs in policy not in search
-    bucket_prefix_orig = bucket_prefix_orig.replace('*','')
+    bucket_prefix_orig = bucket_prefix_orig.replace('*', '')
 
     bucket_prefix = bucket_prefix_orig
     delim = "/"
 
     if force:
-        create_cluster_json(ec2_conn, s3_bucket_path, user, all_policies, False, clustername)
+        create_cluster_json(ec2_conn, s3_bucket_path, user, all_policies, False, clustername, [])
 
     iter = 0
-    file_list = []
     bucket = None
     downloaded = 0
-    result_iter = []
     while bucket_prefix is not None:
 
         access = 'read allow' if iter == 0 else 'read deny'
@@ -264,8 +264,11 @@ def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path, clustername, fo
             try:
                 location = bucket.get_location()
             except Exception, e:
-                print "Warning, location of bucket is not accessible, customer to ensure location is {}".format(
+                validated = False
+                reasons = "Warning, location of bucket is not accessible, customer to ensure location is {}".format(
                     ec2_conn.region.name)
+                print reasons
+                warning_reasons.append(reasons)
             else:
                 if location == '':
                     regions_allowed = ['us-east-1']
@@ -309,12 +312,13 @@ def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path, clustername, fo
                 if downloaded > 0:
                     break
             prefixes = [prefix.name for prefix in result_iter]
-            if iter == 0 and  len(prefixes) < 1:
+            if iter == 0 and len(prefixes) < 1:
                 validated = False
+                reasons = """"Warning: Did not find any folders or files in prefix {} using delim {}.  "
+                          Please upload at least 1 file""".format(bucket_prefix, delim)
+                print(reasons)
+                warning_reasons.append(reasons)
 
-                print("Warning : "
-                       "Did not find any folders or files in prefix {} using delim {}.  "
-                      "Please upload at least 1 file".format(bucket_prefix, delim))
                 break
         except S3ResponseError, e:
             if iter == 0:
@@ -323,8 +327,11 @@ def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path, clustername, fo
 
         else:
             if iter > 0:
-                raise Exception(
-                    "Unexpected Read Access is granted on path on bucket prefix {}.\n".format(bucket_prefix))
+                validated = False
+                reasons = "Warning: Unexpected Read Access is granted on path on bucket prefix {}.\n".format(
+                    bucket_prefix)
+                print(reasons)
+                warning_reasons.append(reasons)
 
         if len(bucket_prefix) > 0 and bucket_prefix[-1] == '/':
             bucket_prefix = bucket_prefix[0:-1]
@@ -336,9 +343,14 @@ def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path, clustername, fo
 
     if downloaded < 1:
         validated = False
-        print("Warning : Could not download any files, check if is this the correct bucket prefix {}".format(bucket_prefix_orig ))
+        reasons = "Warning : Could not download any files, check if is this the correct bucket prefix {}".format(
+            bucket_prefix_orig)
+        print(reasons)
+        warning_reasons.append(reasons)
 
     testfile = 'dummy.txt'
+    with open(testfile, 'w+') as filep:
+        pass
 
     try:
         k = Key(bucket)
@@ -347,9 +359,12 @@ def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path, clustername, fo
     except S3ResponseError, e:
         print "verified read only access to path {} ".format(bucket_prefix_orig)
     else:
-        raise Exception("FAILED: Was able to write to path {}".format(k.key))
+        validated = False
+        reasons = "Warning: Was able to write to path {}".format(k.key)
+        print(reasons)
+        warning_reasons.append(reasons)
 
-    create_cluster_json(ec2_conn, s3_bucket_path, user, all_policies, validated, clustername)
+    create_cluster_json(ec2_conn, s3_bucket_path, user, all_policies, validated, clustername, warning_reasons)
 
 
 def main():
