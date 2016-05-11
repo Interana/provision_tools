@@ -242,7 +242,6 @@ def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path, clustername, fo
         print reasons
         warning_reasons.append(reasons)
 
-
     bucket_name, bucket_prefix_orig = get_bucket_name_prefix(s3_bucket_path)
 
     # * belongs in policy not in search
@@ -297,7 +296,7 @@ def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path, clustername, fo
                 for prefix in sorted(prefixes, reverse=True):
                     print "Viewing folder {}".format(prefix.name)
                     for num, item in enumerate(sorted(bucket.list(prefix.name, delim), reverse=True)):
-                        if isinstance(item, Prefix):
+                        if isinstance(item, Prefix) or item.name[-1] == '/':
                             print 'Folder={}'.format(item.name)
                             next_prefixes.append(item)
                             continue
@@ -313,6 +312,8 @@ def provision_check(ec2_conn, iam_conn, s3_conn, s3_bucket_path, clustername, fo
                         downloaded = download_files(result_iter)
                         if downloaded > 0:
                             break
+                        else:
+                            result_iter = []
                 if downloaded > 0:
                     break
             prefixes = [prefix.name for prefix in result_iter]
